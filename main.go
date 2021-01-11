@@ -16,11 +16,19 @@ const LIN_SEPARATOR = "/"
 // Macのファイルパスに使われるセパレータ（LinuxベースのためLinuxと同様）
 const MAC_SEPARATOR = LIN_SEPARATOR
 
+const containsHiddenFile = false
+
 func main() {
+	// 隠しファイルをTreeに含めるか
+	//var containsHiddenFiles = flag.Bool("h", false, "contains hidden files for tree.")
+	//flag.Parse()
+
 	var directories = getDirectories(".")
-	var tInfo treeInfo
+	var tInfo TreeInfo
 	tInfo.initTreeInfo()
 	tInfo.makeMap(directories)
+
+	fmt.Println(tInfo)
 
 	for _, dir := range directories {
 		fmt.Println(dir, countSeparator(dir))
@@ -29,76 +37,6 @@ func main() {
 			fmt.Println("\t" + fileName)
 		}
 	}
-}
-
-//type treeInfo map[string]*[]string
-type treeInfo struct {
-	fileInfo map[string]*[]string
-	tabInfo map[string]int
-}
-
-/*
-	treeInfoの初期化
- */
-func(tInfo *treeInfo) initTreeInfo() {
-	tInfo.fileInfo = make(map[string]*[]string)
-	tInfo.tabInfo = make(map[string]int)
-}
-
-/*
-	指定されたキーが存在するかチェック
- */
-func (tInfo treeInfo) isExists(key string) bool {
-	if _, ok := tInfo.fileInfo[key]; ok {
-		return true
-	}
-	return false
-}
-
-/*
-	file情報を取得
- */
-func (tInfo treeInfo) getFiles(key string) []string {
-	if tInfo.isExists(key) {
-		return *tInfo.fileInfo[key]
-	}
-	return nil
-}
-
-/*
-	タブの個数を取得
- */
-func (tInfo treeInfo) tabNumber(key string) int {
-	if tInfo.isExists(key) {
-		return tInfo.tabInfo[key]
-	}
-	return 0
-}
-
-/*
-	指定された複数のパスから、map[string]*[]stringのマップを作成する
-*/
-func (tInfo treeInfo) makeMap(paths []string) {
-	for _, path := range paths {
-		var values []string
-		files := getFileInfos(path)
-		for _, file := range files {
-			values = append(values, file.Name())
-		}
-		tInfo.fileInfo[path] = &values
-	}
-}
-
-/*
-	baseパスのparentを取得する
- */
-func (tInfo treeInfo) getParentPath(key string) string {
-	if tInfo.isExists(key) {
-		separatedKeys := strings.Split(key, separator())
-		lastElement := separatedKeys[0:len(separatedKeys)-1]
-		return strings.Join(lastElement, separator())
-	}
-	return ""
 }
 
 func countSeparator(path string) int {
@@ -113,8 +51,16 @@ func getDirectories(p string) []string {
 	var dirs = getFileInfos(path)
 	var result []string
 
+	if strings.EqualFold(path, ".") {
+		result = append(result, path)
+	}
+
 	for _, dir := range dirs {
 		if dir.IsDir() {
+			if !containsHiddenFile && !strings.EqualFold(dir.Name(), ".") && strings.HasPrefix(dir.Name(), ".") {
+				continue
+			}
+
 			if path[len(path)-1:] != separator() {
 				suffixAddSeparator(&path)
 			}
@@ -127,7 +73,7 @@ func getDirectories(p string) []string {
 }
 
 /*
-	指定されたディレクトリは以下のファイル情報を取得（ファイル）
+	指定されたディレクトリ配下のファイル情報を取得（ファイル）
 */
 func getFiles(p string) []string {
 	var path = p
@@ -144,7 +90,7 @@ func getFiles(p string) []string {
 }
 
 /*
-	指定されたディレクトリは以下のファイル情報を取得（ファイル、ディレクトリ含む）
+	指定されたディレクトリ配下のファイル情報を取得（ファイル、ディレクトリ含む）
  */
 func getFileInfos(path string) []os.FileInfo {
 	if path == "" {
